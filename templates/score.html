@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match Score</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .v-stack {
+            position: absolute;
+            top: 8px;
+            left: 10px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .h-stack {
+            border-radius: 10px;
+            display: flex;
+            gap: 0;
+        }
+
+        .card {
+            padding: 0 10px;
+        }
+
+        .card-team-a {
+            border-top-left-radius: 10px;
+            border-bottom-left-radius: 10px;
+            padding: 10px;
+        }
+
+        .card-team-b {
+            border-top-right-radius: 10px;
+            border-bottom-right-radius: 10px;
+            padding: 10px;
+        }
+
+        .card-team-a,
+        .card-team-b {
+            background-color: #206EE2;
+        }
+
+        .card-score,
+        .card-time {
+            background-color: #1C2232;
+        }
+
+        .text-uppercase {
+            text-transform: uppercase;
+        }
+
+        .text-white {
+            color: #fdfdfd;
+        }
+
+        .font-weight-600 {
+            font-weight: 600;
+        }
+
+        .timer-container {
+            color: #fdfdfd;
+            border-bottom-left-radius: 5px;
+            border-bottom-right-radius: 5px;
+            padding: 5px;
+            align-self: center;
+            margin-right: -8px;
+        }
+
+        .card-score {
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="v-stack">
+        <div class="h-stack">
+            <div class="card card-team-a">
+                <div class="text-white text-uppercase">
+                    {{team_a}}
+                </div>
+            </div>
+            <div class="card card-score">
+                <div class="text-white font-weight-600">
+                    {{team_a_score}}
+                </div>
+            </div>
+            <div class="card card-score">
+                <div class="text-white font-weight-600">
+                    {{team_b_score}}
+                </div>
+            </div>
+            <div class="card card-team-b">
+                <div class="text-white text-uppercase">
+                    {{team_b}}
+                </div>
+            </div>
+        </div>
+        <div class="card card-time timer-container">
+            00:00
+        </div>
+    </div>
+
+</body>
+
+</html>
