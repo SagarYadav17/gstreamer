@@ -31,6 +31,7 @@ RUN apt-get install -y --fix-missing \
 # Set environment variables
 ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
 ENV GI_TYPELIB_PATH=/usr/lib/x86_64-linux-gnu/girepository-1.0
+ENV GST_DEBUG=3
 
 # Copy your application to the Docker image
 COPY . /app
