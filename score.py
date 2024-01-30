@@ -1,34 +1,35 @@
 import asyncio
 import websockets
 import json
-from flask import render_template, Flask, render_template_string
 import subprocess
+import requests
+import os
+import logging
 from datetime import datetime, timedelta
+import dotenv
 
-from time import sleep
-from datetime import datetime, timedelta
+from flask import render_template, Flask
+
+
+# Set up
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+dotenv.load_dotenv()
 
 
 app = Flask(__name__)
 
+email = os.environ.get("EMAIL")
+password = os.environ.get("PASSWORD")
 
-# async def stream():
+if not email or not password:
+    raise Exception("EMAIL and PASSWORD environment variables are required")
 
-#     # # Connect to the WebSocket and continuously receive messages
-#     # async with websockets.connect("ws://3.110.33.117/ws/chat/") as ws:
-#     #     while True:
-#     #         message = await ws.recv()
-#     #         message = json.loads(message).get("message", default_message)
-
-#     #         print(message)
-#     #         # Pass the message into an HTML template
-#     #         with app.app_context():
-#     #             generate_image(message)
-
-#     generate_image(default_message)
-
-
-# asyncio.run(stream())
+login_url = "https://gs360.balizado.sagaryadav.dev/api/iam/login/"
+body = {
+    "email": email,
+    "password": password,
+}
 
 default_message = {
     "team_a": "Team A",
@@ -38,10 +39,7 @@ default_message = {
     "time": "00:00",
 }
 
-# Convert the time string to a datetime object
-time_obj = datetime.strptime(default_message["time"], "%H:%M")
-
-options = [
+wkhtmltoimage_options = [
     "--quality",
     "100",
     "--width",
@@ -56,19 +54,41 @@ def generate_image(message: dict):
     with app.app_context():
         html_template = render_template("score.html", **message)
         subprocess.run(
-            ["wkhtmltoimage"] + options + ["-", "image.png"],
+            ["wkhtmltoimage"] + wkhtmltoimage_options + ["-", "image.png"],
             input=html_template.encode(),
         )
 
 
-while True:
-    html_data = generate_image(default_message)
+def auth():
+    response = requests.post(login_url, data=body)
 
-    # Add 1 minute to the time
-    time_obj += timedelta(minutes=1)
+    if response.status_code == 200:
+        return response.json().get("access")
 
-    # Convert the datetime object back to a string
-    time = time_obj.strftime("%H:%M")
-    default_message["time"] = time
+    return None
 
-    sleep(1)
+
+async def run_score(livestream_id: str):
+    token = auth()
+    # Convert the time string to a datetime object
+    time_obj = datetime.strptime(default_message["time"], "%H:%M")
+
+    async with websockets.connect(
+        f"wss://gs360.balizado.sagaryadav.dev/ws/live-updates/{livestream_id}/?token={token}"
+    ) as ws:
+        while True:
+            message = await ws.recv()
+            message = json.loads(message).get("data", {})
+
+            score_data = message.get("message", default_message)
+            status = message.get("status")
+
+            # if status in ["finished", "discarded"]:
+            #     exit("Stream has ended")
+
+            while True:
+                time_obj += timedelta(minutes=1)
+                time = time_obj.strftime("%H:%M")
+                score_data["time"] = time
+                generate_image(score_data)
+                await asyncio.sleep(1)
