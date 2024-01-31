@@ -4,6 +4,9 @@ FROM ubuntu:latest
 # Update package list
 RUN apt-get update
 
+ENV TZ=UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # Install necessary packages
 RUN apt-get install -y --fix-missing \
     python3-pip \
@@ -26,7 +29,8 @@ RUN apt-get install -y --fix-missing \
     gir1.2-gstreamer-1.0 \
     libcairo2-dev \
     pkg-config \
-    python3-dev
+    python3-dev \
+    wkhtmltopdf
 
 # Set environment variables
 ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
@@ -48,4 +52,4 @@ RUN venv/bin/pip install --upgrade pip
 RUN venv/bin/pip install -r requirements.txt
 
 # Run your application
-CMD [ "venv/bin/python3", "main.py" ]
+CMD [ "venv/bin/python3", "main.py"]

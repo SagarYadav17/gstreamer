@@ -40,27 +40,18 @@ def on_bus_message(bus, message, loop):
     return True
 
 
-def start_pipeline(stream_url: str, restream_url: str = None) -> None:
+def start_pipeline(stream_url: str, restream_url: str) -> None:
     Gst.init(None)
 
     # GStreamer pipeline for HLS restreaming
     pipeline_string = (
         f"uridecodebin uri={stream_url} name=dec "
         f"dec. ! queue ! videoconvert ! mix.sink_0 "
-        f"dec. ! queue ! audioconvert ! autoaudiosink "
+        f"dec. ! queue ! audioconvert ! audioresample ! voaacenc ! queue ! flvmux. "
         f'multifilesrc location=image.png caps="image/png,framerate=(fraction)1/1" loop=true ! '
         f"pngdec ! videoconvert ! gdkpixbufoverlay offset-x=0 offset-y=0 ! mix.sink_1 "
-        f"videomixer name=mix ! videoconvert ! autovideosink"
+        f"videomixer name=mix ! videoconvert ! x264enc tune=zerolatency ! flvmux name=flvmux ! queue ! rtmpsink location={restream_url}"
     )
-
-    # pipeline_string = (
-    #     f"uridecodebin uri={stream_url} name=dec "
-    #     f"dec. ! queue ! videoconvert ! mix.sink_0 "
-    #     f"dec. ! queue ! audioconvert ! audioresample ! voaacenc ! queue ! flvmux. "
-    #     f'multifilesrc location=image.png caps="image/png,framerate=(fraction)1/1" loop=true ! '
-    #     f"pngdec ! videoconvert ! gdkpixbufoverlay offset-x=0 offset-y=0 ! mix.sink_1 "
-    #     f"videomixer name=mix ! videoconvert ! x264enc tune=zerolatency ! flvmux name=flvmux ! queue ! rtmpsink location={restream_url}"
-    # )
 
     pipeline = Gst.parse_launch(pipeline_string)
 
@@ -80,12 +71,12 @@ def start_pipeline(stream_url: str, restream_url: str = None) -> None:
     loop.quit()
 
 
-async def main(livestream_id: str, stream_url: str):
+async def main(livestream_id: str, stream_url: str, restream_url: str):
     # Create a task for the run_score coroutine
     _thread = threading.Thread(target=asyncio.run, args=(run_score(livestream_id),))
     _thread.start()
 
-    start_pipeline(stream_url=stream_url)
+    start_pipeline(stream_url=stream_url, restream_url=restream_url)
 
 
 if __name__ == "__main__":
@@ -98,14 +89,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--stream-url",
         help="The Dash URL of the stream to be streamed",
-        type=str,
+        type=validate_dash_url,
     )
     parser.add_argument(
         "--restream-url",
         help="The RTMP URL of the stream to be streamed",
-        type=validate_dash_url,
-        required=False,
+        type=str,
     )
     args = parser.parse_args()
 
-    asyncio.run(main(args.livesteram_id, args.stream_url))
+    asyncio.run(main(args.livesteram_id, args.stream_url, args.restream_url))
