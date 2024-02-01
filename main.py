@@ -48,10 +48,10 @@ def start_pipeline(stream_url: str, restream_url: str) -> None:
     # GStreamer pipeline for HLS restreaming
     pipeline_string = (
         f"uridecodebin uri={stream_url} name=dec "
-        f"dec. ! queue ! videoconvert ! mix.sink_0 "
+        f"dec. ! queue ! videoconvert ! videoscale ! video/x-raw,width=1920,height=1080 ! mix.sink_0 "
         f"dec. ! queue ! audioconvert ! audioresample ! voaacenc ! queue ! flvmux. "
         f'multifilesrc location=image.png caps="image/png,framerate=(fraction)1/1" loop=true ! '
-        f"pngdec ! videoconvert ! gdkpixbufoverlay offset-x=0 offset-y=0 ! mix.sink_1 "
+        f"pngdec ! videoconvert ! videoscale ! video/x-raw,width=1920,height=1080 ! gdkpixbufoverlay offset-x=0 offset-y=0 ! mix.sink_1 "
         f"videomixer name=mix ! videoconvert ! x264enc tune=zerolatency ! flvmux name=flvmux ! queue ! rtmpsink location={restream_url}"
     )
 

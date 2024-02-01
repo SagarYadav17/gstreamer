@@ -54,4 +54,4 @@ RUN venv/bin/pip install --upgrade pip
 RUN venv/bin/pip install -r requirements.txt
 
 # Run your application
-CMD [ "venv/bin/python3", "main.py", "$LIVESTREAM_ID", "--stream-url", "$STREAM_URL", "--restream-url", "$RESTREAM_URL"]
+CMD venv/bin/python3 main.py $LIVESTREAM_ID --stream-url $STREAM_URL --restream-url $RESTREAM_URL

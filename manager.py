@@ -28,12 +28,16 @@ def create_container(live_stream_id: str, stream_url: str, restream_url: str):
         "PASSWORD": "",
     }
 
+    cpu_quota = int(60 * 100000)  # 60% of the system (in microseconds)
+
     client.containers.run(
-        image="sagaryadav1712/gstreamer",
+        image="gstreamer:latest",
         name=live_stream_id,
-        cpu_percent=30,
+        cpu_period=100000,  # Set the CPU period (in microseconds)
+        cpu_quota=cpu_quota,  # Set the CPU quota (in microseconds)
         detach=True,
         environment=env_vars,
+        remove=True,
     )
 
 
