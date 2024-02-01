@@ -33,10 +33,12 @@ def on_bus_message(bus, message, loop):
     if t == Gst.MessageType.EOS:
         logger.debug("End of stream")
         loop.quit()
+        exit("End of stream")
     elif t == Gst.MessageType.ERROR:
         err, debug_info = message.parse_error()
         logger.error(f"Error: {err} - {debug_info}")
         loop.quit()
+        exit(f"Error: {err} - {debug_info}")
     return True
 
 

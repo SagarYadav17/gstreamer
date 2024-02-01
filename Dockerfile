@@ -35,6 +35,8 @@ RUN apt-get install -y --fix-missing \
 # Set environment variables
 ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
 ENV GI_TYPELIB_PATH=/usr/lib/x86_64-linux-gnu/girepository-1.0
+ENV GST_PLUGIN_SYSTEM_PATH=/usr/lib/x86_64-linux-gnu/gstreamer-1.0
+
 ENV GST_DEBUG=3
 
 # Copy your application to the Docker image
@@ -52,4 +54,4 @@ RUN venv/bin/pip install --upgrade pip
 RUN venv/bin/pip install -r requirements.txt
 
 # Run your application
-CMD [ "venv/bin/python3", "main.py"]
+CMD [ "venv/bin/python3", "main.py", "$LIVESTREAM_ID", "--stream-url", "$STREAM_URL", "--restream-url", "$RESTREAM_URL"]
