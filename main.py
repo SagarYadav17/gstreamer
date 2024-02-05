@@ -1,61 +1,46 @@
-import argparse
-import asyncio
-import os
-import logging
-import threading
-import dotenv
-
 import gi
+import logging
 
-from score import run_score
-from validator import validate_dash_url, validate_uuid
 
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst, GLib
 
-
-# Set up
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-dotenv.load_dotenv()
+
+def update_overlay_location(pipeline, overlay):
+    on_timeout(pipeline)
+
+    # Get the current position in the pipeline
+    success, position = pipeline.query_position(Gst.Format.TIME)
+    if not success:
+        logging.info("Failed to get the position, using the default image.")
+        # use the default image
+        image_file_path = f"images/image_000000.png"
+    else:
+        # Convert position from nanoseconds to seconds
+        position_seconds = position // Gst.SECOND
+        image_file_path = f"images/image_{position_seconds:06}.png"
+
+    # Update the image file path
+    overlay.set_property("location", image_file_path)
+
+    return True  # Continue calling this function
 
 
-email = os.environ.get("EMAIL")
-password = os.environ.get("PASSWORD")
-
-if not email or not password:
-    raise Exception("EMAIL and PASSWORD environment variables are required")
-
-
-def on_bus_message(bus, message, loop):
-    t = message.type
-    if t == Gst.MessageType.EOS:
-        logger.debug("End of stream")
-        loop.quit()
-        exit("End of stream")
-    elif t == Gst.MessageType.ERROR:
-        err, debug_info = message.parse_error()
-        logger.error(f"Error: {err} - {debug_info}")
-        loop.quit()
-        exit(f"Error: {err} - {debug_info}")
-    return True
-
-
-def start_pipeline(stream_url: str, restream_url: str) -> None:
+def start_pipeline(video_file_path: str, output_file_path: str) -> None:
     Gst.init(None)
 
-    # GStreamer pipeline for HLS restreaming
     pipeline_string = (
-        f"uridecodebin uri={stream_url} name=dec "
-        f"dec. ! queue ! videoconvert ! videoscale ! video/x-raw,width=1920,height=1080 ! mix.sink_0 "
-        f"dec. ! queue ! audioconvert ! audioresample ! voaacenc ! queue ! flvmux. "
-        f'multifilesrc location=image.png caps="image/png,framerate=(fraction)1/1" loop=true ! '
-        f"pngdec ! videoconvert ! videoscale ! video/x-raw,width=1920,height=1080 ! gdkpixbufoverlay offset-x=0 offset-y=0 ! mix.sink_1 "
-        f"videomixer name=mix ! videoconvert ! x264enc tune=zerolatency ! flvmux name=flvmux ! queue ! rtmpsink location={restream_url}"
+        f"filesrc location={video_file_path} ! decodebin name=dec "
+        f"dec. ! queue ! videoconvert ! gdkpixbufoverlay name=overlay location=images/image_000000.png ! x264enc ! queue ! mp4mux name=mux ! filesink location={output_file_path} "
+        f"dec. ! queue ! audioconvert ! audioresample ! voaacenc ! queue ! mux. "
     )
-
     pipeline = Gst.parse_launch(pipeline_string)
+
+    # Get the overlay element
+    overlay = pipeline.get_by_name("overlay")
 
     # Set up bus to receive messages
     bus = pipeline.get_bus()
@@ -63,41 +48,40 @@ def start_pipeline(stream_url: str, restream_url: str) -> None:
     bus.connect("message", on_bus_message, GLib.MainLoop.new(None, False))
 
     # Start the pipeline
-    logger.debug("Starting the pipeline")
     pipeline.set_state(Gst.State.PLAYING)
 
     # Run the main loop
-    logger.debug("Running the main loop")
     loop = GLib.MainLoop()
+
+    # Add a timeout callback to update the overlay location every second
+    GLib.timeout_add(100, update_overlay_location, pipeline, overlay)
+
     loop.run()
     loop.quit()
+    exit("Done")
 
 
-async def main(livestream_id: str, stream_url: str, restream_url: str):
-    # Create a task for the run_score coroutine
-    _thread = threading.Thread(target=asyncio.run, args=(run_score(livestream_id),))
-    _thread.start()
+def on_timeout(pipeline):
+    position_query = Gst.Query.new_position(Gst.Format.TIME)
+    duration_query = Gst.Query.new_duration(Gst.Format.TIME)
 
-    start_pipeline(stream_url=stream_url, restream_url=restream_url)
+    if pipeline.query(position_query) and pipeline.query(duration_query):
+        position = position_query.parse_position()[1] / Gst.SECOND
+        duration = duration_query.parse_duration()[1] / Gst.SECOND
+        logging.debug(f"Position: {position}s / {duration}s")
+
+    # Return True to keep the timeout
+    return True
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "livesteram_id",
-        help="The ID of the livestream to be streamed",
-        type=validate_uuid,
-    )
-    parser.add_argument(
-        "--stream-url",
-        help="The Dash URL of the stream to be streamed",
-        type=validate_dash_url,
-    )
-    parser.add_argument(
-        "--restream-url",
-        help="The RTMP URL of the stream to be streamed",
-        type=str,
-    )
-    args = parser.parse_args()
-
-    asyncio.run(main(args.livesteram_id, args.stream_url, args.restream_url))
+def on_bus_message(bus, message, loop):
+    t = message.type
+    if t == Gst.MessageType.EOS:
+        logging.debug("End of stream")
+        loop.quit()
+        exit("Done")
+    elif t == Gst.MessageType.ERROR:
+        err, debug_info = message.parse_error()
+        logging.error(f"Error: {err} - {debug_info}")
+        loop.quit()
+        exit("Error")

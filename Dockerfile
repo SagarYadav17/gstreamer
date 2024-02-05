@@ -4,6 +4,7 @@ FROM ubuntu:latest
 # Update package list
 RUN apt-get update
 
+# Set the timezone to UTC
 ENV TZ=UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -36,7 +37,6 @@ RUN apt-get install -y --fix-missing \
 ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
 ENV GI_TYPELIB_PATH=/usr/lib/x86_64-linux-gnu/girepository-1.0
 ENV GST_PLUGIN_SYSTEM_PATH=/usr/lib/x86_64-linux-gnu/gstreamer-1.0
-
 ENV GST_DEBUG=3
 
 # Copy your application to the Docker image
@@ -52,6 +52,3 @@ RUN . venv/bin/activate
 # Install Python dependencies
 RUN venv/bin/pip install --upgrade pip
 RUN venv/bin/pip install -r requirements.txt
-
-# Run your application
-CMD venv/bin/python3 main.py $LIVESTREAM_ID --stream-url $STREAM_URL --restream-url $RESTREAM_URL
